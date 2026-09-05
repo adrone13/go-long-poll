@@ -8,6 +8,10 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/adrone13/go-long-poll/pkg/logging"
+	"github.com/adrone13/go-long-poll/server/handler"
+	"github.com/adrone13/go-long-poll/server/jobs"
 )
 
 // TestConcurrentSubmitAndResult drives concurrent submit+result requests to
@@ -15,12 +19,16 @@ import (
 //
 //	go test -race ./server/...
 func TestConcurrentSubmitAndResult(t *testing.T) {
+	logger := logging.New("error", true)
+	jobStore := jobs.New()
 	jobSteps = 1
 	jobStepDelay = time.Millisecond
 
+	jobsHandler := handler.NewJobsHandler(logger, jobStore, jobSteps, jobStepDelay)
+
 	mux := http.NewServeMux()
-	mux.HandleFunc("/submit", submitHandler)
-	mux.HandleFunc("/result", resultHandler)
+	mux.HandleFunc("/submit", jobsHandler.SubmitHandler)
+	mux.HandleFunc("/result", jobsHandler.ResultHandler)
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 

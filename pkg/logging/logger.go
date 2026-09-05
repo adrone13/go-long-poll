@@ -15,7 +15,7 @@ func New(logLevel string, pretty bool) *slog.Logger {
 	}
 
 	if pretty {
-		handler := slogpretty.New(os.Stdout, nil)
+		handler := slogpretty.New(os.Stdout, &slogpretty.Options{Level: level})
 		slog.SetDefault(slog.New(handler))
 
 		return slog.New(handler)
