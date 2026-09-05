@@ -34,13 +34,7 @@ func (jh *JobHandler) performJob(jobID jobs.JobID) {
 		jh.logger.Info(fmt.Sprintf("job progress: %d%%", (i+1)*10), slog.Any("job_id", jobID))
 	}
 
-	ch, ok := jh.jobStore.Get(jobID)
-	if !ok {
-		jh.logger.Error("perform job: not found")
-		return
-	}
-
-	ch <- fmt.Sprintf("job %d is done", jobID)
+	jh.jobStore.Complete(jobID, fmt.Sprintf("job %d is done", jobID))
 }
 
 func (jh *JobHandler) SubmitHandler(w http.ResponseWriter, r *http.Request) {
@@ -78,8 +72,7 @@ func (jh *JobHandler) ResultHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resCh, ok := jh.jobStore.Get(jobID)
-
+	job, ok := jh.jobStore.Get(jobID)
 	if !ok {
 		jh.logger.Error("job not found", slog.String("job_id", jobID.String()))
 		http.Error(w, "job not found", http.StatusNotFound)
@@ -87,9 +80,9 @@ func (jh *JobHandler) ResultHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	select {
-	case res := <-resCh:
+	case <-job.Done():
 		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write([]byte(res)); err != nil {
+		if _, err := w.Write([]byte(job.Result())); err != nil {
 			jh.logger.Error("failed to write result", slog.String("error", err.Error()))
 		}
 		jh.jobStore.Delete(jobID)
